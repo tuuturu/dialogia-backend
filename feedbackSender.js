@@ -1,31 +1,28 @@
+const envConfig = require('./envConfig');
 const request = require('request');
-
-const recipientEmailAddress = 'developerportal@oslo.kommune.no';
-const emailAPIKey = 'TODO'; //TODO switch
-const emailAPIEndpoint = 'https://email-test.api-test.oslo.kommune.no/email';
 
 const sendFeedback = (message, callback) => {
 
     const requestBody = {
-        mottakerepost: [recipientEmailAddress],
-        avsenderepost: recipientEmailAddress,
+        mottakerepost: [envConfig.recipientEmailAddress],
+        avsenderepost: envConfig.recipientEmailAddress,
         emne: 'New feedback from developer portal',
         meldingskropp: message
     };
 
     request({
-        url: emailAPIEndpoint,
+        url: envConfig.emailApiEnpointUrl,
         method: 'POST',
         headers: {
             "content-type": "application/json",
-            "apikey": emailAPIKey
+            "apikey": envConfig.emailApiApiKey
         },
         json: requestBody}, (error, response) => {
         if (response.statusCode === 200) {
             callback(undefined, 'Message sent!');
         } else {
-            console.log('error:', error);
-            console.log('statusCode:', response.statusCode);
+            console.error('error:', error);
+            console.error('statusCode:', response.statusCode);
             callback(error, undefined);
         }
     });

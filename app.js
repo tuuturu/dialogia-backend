@@ -2,6 +2,8 @@ const express = require('express');
 const logger = require('morgan');
 const sendFeedback = require('./feedbackSender');
 
+const PORT = 3000;
+
 const app = express();
 
 app.use(logger('dev'));
@@ -25,4 +27,6 @@ app.post('/feedback', function ({ body }, res) {
     }
 });
 
-app.listen(3000);
+app.listen(PORT, () => {
+    console.log(`Server started listening on port ${PORT}`)
+});
