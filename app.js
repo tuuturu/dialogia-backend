@@ -1,17 +1,27 @@
 const express = require('express');
 const logger = require('morgan');
 const sendFeedback = require('./feedbackSender');
+const authMiddleware = require('./auth.js');
 
 const PORT = 3000;
+const BASE_ENTRYPOINT = '/feedback';
 
 const app = express();
 
 app.use(logger('dev'));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+app.use(authMiddleware);
 
+app.use(function (err, req, res, next) {
+    if (err.name === 'UnauthorizedError') {
+        res.status(401).send('Invalid or missing token...');
+    }
+});
 
-app.post('/feedback', function ({ body }, res) {
+app.post(BASE_ENTRYPOINT, function (req, res) {
+    console.log(req);
+    const body = req.body;
     if (!body) {
         res.status(400).send('text attribute required!');
     } else if (body.text.length < 5 || body.text.length > 500) {

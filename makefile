@@ -35,6 +35,7 @@ generate-dotenv-file: ## Generate .env file template
 	echo "RECIPIENT_EMAIL_ADDRESS=developerportal@oslo.kommune.no" >> .env
 	echo "EMAIL_API_API_KEY=" >> .env
 	echo "EMAIL_API_ENDPOINT_URL=https://email-test.api-test.oslo.kommune.no/email" >> .env
+	echo "KEYCLOAK_AUTH_URL=https://login-test.oslo.kommune.no/auth" >> .env
 
 clean: ## Clean up project directory
 	@rm -rf node_modules || true
