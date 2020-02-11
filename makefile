@@ -1,5 +1,8 @@
-NAME=`cat package.json | jq .name | cut -d"\"" -f2`
-VERSION=`cat package.json | jq .version | cut -d"\"" -f2`
+.PHONY: help
+SHELL = /bin/bash
+
+NAME=`jq .name package.json -r`
+VERSION=`jq .version package.json -r`
 REPOSITORY=container-registry.oslo.kommune.no
 
 help: ## Print this menu
@@ -9,7 +12,7 @@ build: ## Build Docker image
 	docker build \
 		--tag ${REPOSITORY}/${NAME}:${VERSION} .
 
-push-image:
+push-image: ## Push image to repository
 	docker push ${REPOSITORY}/${NAME}:${VERSION}
 
 deploy:
