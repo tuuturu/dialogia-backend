@@ -20,9 +20,9 @@ app.use(function (err, req, res, next) {
 });
 
 app.post(BASE_ENTRYPOINT, function (req, res) {
-    console.log(req);
     const body = req.body;
-    if (!body) {
+    console.log(body);
+    if (!body || !body.text) {
         res.status(400).send('text attribute required!');
     } else if (body.text.length < 5 || body.text.length > 500) {
         res.status(400).send('text attribute needs to be between 5 and 500 characters!');
