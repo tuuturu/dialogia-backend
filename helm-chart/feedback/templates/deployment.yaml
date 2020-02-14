@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "feedback.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "feedback.name" . }}
+    helm.sh/chart: {{ include "feedback.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "feedback.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "feedback.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- if .Values.ingress.enabled }}
+        ingress: enabled
+        {{- end }}
+        {{- toYaml .Values.podLabels | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        - name: {{ .Values.imagePullSecret }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.internalPort }}
+              protocol: TCP
+          env:
+            - name: RECIPIENT_EMAIL_ADDRESS
+              value: {{ .Values.emailTarget }}
+            - name: EMAIL_API_ENDPOINT_URL
+              value: {{ .Values.emailApiEndpoint }}
+            - name: KEYCLOAK_AUTH_URL
+              value: {{ .Values.keycloackAuthUrl }}
+            - name: EMAIL_API_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.app.apiKeyRef }}
+                  name: {{ .Values.app.apiKeyRef }}
+                    {{- else }}
+                  name: {{ template "feedback.fullname" . }}-email-api-key
+                          {{- end }}
+                  key: api-key
+              value: {{ .Values.app.apiKey | quote }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: {{ .Values.app.runAsUser }}
+            runAsGroup: {{ .Values.app.runAsGroup }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.app.readinessProbe.path }}
+              port: {{ .Values.service.internalPort }}
+            failureThreshold: {{ .Values.app.livenessProbe.failureThreshold }}
+            initialDelaySeconds: {{ .Values.app.livenessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.app.livenessProbe.timeoutSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.app.livenessProbe.path }}
+              port: {{ .Values.service.internalPort }}
+            failureThreshold: {{ .Values.app.readinessProbe.failureThreshold }}
+            initialDelaySeconds: {{ .Values.app.readinessProbe.initialDelaySeconds }}
+            timeoutSeconds: {{ .Values.app.readinessProbe.timeoutSeconds }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

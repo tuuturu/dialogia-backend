@@ -3,6 +3,10 @@ const request = require('request');
 
 const sendFeedback = (message, callback) => {
 
+
+    let apiKey = envConfig.emailApiApiKey
+    apiKey = apiKey.split('\n').join('');
+
     const requestBody = {
         mottakerepost: [envConfig.recipientEmailAddress],
         avsenderepost: envConfig.recipientEmailAddress,
@@ -15,7 +19,7 @@ const sendFeedback = (message, callback) => {
         method: 'POST',
         headers: {
             "content-type": "application/json",
-            "apikey": envConfig.emailApiApiKey
+            "apikey": apiKey
         },
         json: requestBody}, (error, response) => {
         if (response.statusCode === 200) {
