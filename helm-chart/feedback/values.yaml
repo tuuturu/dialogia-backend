@@ -1,0 +1,66 @@
+# Default values for feedback.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: container-registry.oslo.kommune.no/developer-portal-feedback
+  # tag: Needs to be specified when deploying
+  pullPolicy: Always
+
+imagePullSecret: regsecret
+nameOverride: ""
+fullnameOverride: ""
+
+### ENV variable config
+emailTarget: ivar.fredriksen@byr.oslo.kommune.no
+emailApiEndpoint: https://email-test.api-test.oslo.kommune.no/email
+keycloackAuthUrl: https://login-test.oslo.kommune.no/auth
+
+
+service:
+  type: ClusterIP
+  externalPort: 80
+  internalPort: 3000
+
+app:
+  runAsUser: 1001
+  runAsGroup: 1001
+  readinessProbe:
+    path: /health
+    initialDelaySeconds: 2
+    timeoutSeconds: 5
+    failureThreshold: 10
+  livenessProbe:
+    path: /health
+    initialDelaySeconds: 3
+    timeoutSeconds: 5
+    failureThreshold: 10
+
+podLabels:
+  loggingEnabled: 'true'
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/whitelist-source-range: 0.0.0.0/0
+  host: devportal-feedback.k8s-test.oslo.kommune.no
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
