@@ -4,20 +4,39 @@ SHELL = /bin/bash
 NAME=`jq .name package.json -r`
 VERSION=`jq .version package.json -r`
 REPOSITORY=container-registry.oslo.kommune.no
+dockerImage = container-registry.oslo.kommune.no/developer-portal-feedback
+helmDir = helm-chart/feedback
+TAG = test
+
+# secrets
+apiKey=feedback-email-api-key
+apiKeyRef=app.apiKeyRef=${apiKey}
+
+# Sha256 of docker image - if set as label on helm upgrade it will always trigger a deploy when docker image has changed.
+# No need to delete pods, bump tags or change arbitary config with this method.
+get-image-digest = "$(shell docker inspect --format='{{.RepoDigests}}' ${dockerImage}:${TAG} | tail -c -66 | head -c 63)"
 
 help: ## Print this menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 build: ## Build Docker image
 	docker build \
-		--tag ${REPOSITORY}/${NAME}:${VERSION} .
+		--tag ${dockerImage}:${TAG} .
 
 push-image: ## Push image to repository
-	docker push ${REPOSITORY}/${NAME}:${VERSION}
+	docker push ${dockerImage}:${TAG}
 
-deploy:
-	helm --tiller-namespace=developerportal-test --namespace=developerportal-test upgrade \
-	--install ${NAME} helm-charts
+deploy: ## Deploy image with given TAG to environment given by TAG. USAGE: make deploy TAG=0.1.XX
+	helm upgrade \
+		feedback \
+		${helmDir} \
+		-f ${helmDir}/values.yaml \
+		--set image.tag=${TAG} \
+		--set podLabels.digest=$(call get-image-digest) \
+		--tiller-namespace=developerportal-test \
+		--set $(apiKeyRef) \
+		--install \
+		--reset-values
 
 run: ## Run the service locally
 	nodemon -r dotenv/config app.js
@@ -29,7 +48,7 @@ run-in-docker: ## Run the service in Docker
 		-d -p 3000:3000 \
 		--name ${NAME} \
 		--env-file .env-docker \
-		${REPOSITORY}/${NAME}:${VERSION}
+		${dockerImage}:${TAG}
 
 test: ## Run tests
 	npm run test
