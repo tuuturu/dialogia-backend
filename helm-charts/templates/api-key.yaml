@@ -1,9 +1,0 @@
-{{- if not .Values.app.apiKeyRef }}
-apiVersion: v1
-data:
-    api-key: {{ .Values.app.apiKey | b64enc }}
-kind: Secret
-metadata:
-    name: feedback-email-api-key
-type: Opaque
-        {{- end }}
