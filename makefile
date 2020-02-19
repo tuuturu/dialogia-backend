@@ -3,36 +3,55 @@ SHELL = /bin/bash
 
 NAME=`jq .name package.json -r`
 VERSION=`jq .version package.json -r`
-REPOSITORY=container-registry.oslo.kommune.no
-dockerImage = container-registry.oslo.kommune.no/developer-portal-feedback
+REPOSITORY = container-registry.oslo.kommune.no
+dockerImage = developer-portal-feedback
+imagePath = ${REPOSITORY}/${dockerImage}
 helmDir = helm-chart/feedback
-TAG = test
 
 # secrets
 apiKey=feedback-email-api-key
 apiKeyRef=app.apiKeyRef=${apiKey}
 
-# Sha256 of docker image - if set as label on helm upgrade it will always trigger a deploy when docker image has changed.
-# No need to delete pods, bump tags or change arbitary config with this method.
-get-image-digest = "$(shell docker inspect --format='{{.RepoDigests}}' ${dockerImage}:${TAG} | tail -c -66 | head -c 63)"
+# Locally stored ref to repository sha256 digest and actual repository sha256 digest
+localDigest = $(shell docker inspect --format='{{.RepoDigests}}' ${imagePath}:${TAG} | tail -c -73 | head -c 71)
+remoteDigest = $(shell curl --verbose --header "Accept: application/vnd.docker.distribution.manifest.v2+json" "https://${REPOSITORY}/v2/${dockerImage}/manifests/${TAG}" 2>&1 | grep Docker-Content-Digest | tail -c 73)
 
 help: ## Print this menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-build: ## Build Docker image
+check-tag:
+ifeq ($(TAG), )
+	@echo "TAG is required and must be sepcified with 'make <command> TAG=xxx'"
+	@exit 1
+endif
+
+check-sha256: check-tag ## Check if image with tag is pushed and ready
+ifeq ($(remoteDigest), )
+	@echo Image for tag \"${TAG}\" is not in ${REPOSITORY}, did you forget to push the image?
+	@exit 1
+else ifneq (${localDigest}, ${remoteDigest})
+	@echo Local__digest --- ${localDigest}
+	@echo Remote_digest --- ${remoteDigest}
+	@echo -n "Remote and local sha256 of image does not match, did you forget to push your latest image? \
+	Remote image will be used, continue? [y/N] " && read ans && [ $${ans:-N} = y ]
+else
+	@echo Remote sha256 for image with TAG \"${TAG}\" matches local image.
+endif
+
+build: check-tag ## Build Docker image
 	docker build \
-		--tag ${dockerImage}:${TAG} .
+		--tag ${imagePath}:${TAG} .
 
-push-image: ## Push image to repository
-	docker push ${dockerImage}:${TAG}
+push-image: check-tag ## Push image to repository
+	docker push ${imagePath}:${TAG}
 
-deploy: ## Deploy image with given TAG to environment given by TAG. USAGE: make deploy TAG=0.1.XX
+deploy: check-tag check-sha256 ## Deploy image with given TAG to environment given by TAG. USAGE: make deploy TAG=0.1.XX
 	helm upgrade \
 		feedback \
 		${helmDir} \
 		-f ${helmDir}/values.yaml \
-		--set image.tag=${TAG} \
-		--set podLabels.digest=$(call get-image-digest) \
+		--set image.repository=${imagePath}@${remoteDigest} \
+		--set podLabels.imageTag=${TAG} \
 		--tiller-namespace=developerportal-test \
 		--set $(apiKeyRef) \
 		--install \
@@ -41,14 +60,14 @@ deploy: ## Deploy image with given TAG to environment given by TAG. USAGE: make 
 run: ## Run the service locally
 	nodemon -r dotenv/config app.js
 
-run-in-docker: ## Run the service in Docker
+run-in-docker: check-tag ## Run the service in Docker
 	docker stop ${NAME} || true
 	docker rm ${NAME} || true
 	docker run \
 		-d -p 3000:3000 \
 		--name ${NAME} \
 		--env-file .env-docker \
-		${dockerImage}:${TAG}
+		${imagePath}:${TAG}
 
 test: ## Run tests
 	npm run test
