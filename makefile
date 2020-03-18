@@ -57,8 +57,26 @@ deploy: check-tag check-sha256 ## Deploy image with given TAG to environment giv
 		--install \
 		--reset-values
 
+build-prod:
+	docker build \
+		--tag ${REPOSITORY}/${NAME}:${VERSION} \
+		.
+push-image-prod:
+	docker push ${REPOSITORY}/${NAME}:${VERSION}
+deploy-prod:
+	helm --tiller-namespace=developerportal --namespace=developerportal upgrade \
+		--install ${NAME} ${helmDir} \
+		--set podLabels.imageTag=${VERSION} \
+		--set $(apiKeyRef) \
+		--set keycloakAuthUrl=https://login.oslo.kommune.no/auth \
+		--set emailApiEndpoint=https://email.api.oslo.kommune.no/email \
+		--set ingress.host=devportal-feedback.k8s.oslo.kommune.no \
+		--set image.repository=${REPOSITORY}/${NAME}:${VERSION} \
+		--reset-values
+
+
 run: ## Run the service locally
-	nodemon -r dotenv/config app.js
+	npx nodemon app.js
 
 run-in-docker: check-tag ## Run the service in Docker
 	docker stop ${NAME} || true
