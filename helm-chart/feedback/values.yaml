@@ -16,7 +16,7 @@ fullnameOverride: ""
 ### ENV variable config
 emailTarget: developerportal@oslo.kommune.no
 emailApiEndpoint: https://email-test.api-test.oslo.kommune.no/email
-keycloackAuthUrl: https://login-test.oslo.kommune.no/auth
+keycloakAuthUrl: https://login-test.oslo.kommune.no/auth
 
 
 service:
