@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require('express');
 const logger = require('morgan');
 const sendFeedback = require('./feedbackSender');
@@ -9,21 +10,10 @@ const HEALTH_ENDPOINT = '/health';
 
 const app = express();
 
-var unless = function(path, middleware) {
-    return function(req, res, next) {
-        if (path === req.path) {
-            return next();
-        } else {
-            return middleware(req, res, next);
-        }
-    };
-};
-
 app.disable('etag')
 app.use(logger('dev'));
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
-app.use(unless(HEALTH_ENDPOINT, authMiddleware));
 
 app.use(function (err, req, res, next) {
     if (err.name === 'UnauthorizedError') {
@@ -31,7 +21,7 @@ app.use(function (err, req, res, next) {
     }
 });
 
-app.post(BASE_ENTRYPOINT, function (req, res) {
+app.post(BASE_ENTRYPOINT, authMiddleware, function (req, res) {
     const body = req.body;
     if (!body || !body.text) {
         res.status(400).send('text attribute required!');
