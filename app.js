@@ -1,6 +1,7 @@
 const express = require('express');
 const logger = require('morgan');
 const sendFeedback = require('./feedbackSender');
+const slackSender = require('./slackSender')
 const authMiddleware = require('./auth.js');
 
 const PORT = 3000;
@@ -38,13 +39,25 @@ app.post(BASE_ENTRYPOINT, function (req, res) {
     } else if (body.text.length < 5 || body.text.length > 500) {
         res.status(400).send('text attribute needs to be between 5 and 500 characters!');
     } else {
-        sendFeedback(body.text, (error, data) => {
-            if (error) {
-                res.status(500).send("Unexpected error occurred");
-            } else {
-                res.send(data);
-            }
-        });
+    	  let status = 200
+			  const errors = []
+
+        if (process.env.SLACK_WEBHOOK_URL)
+            slackSender(body.text, error => {
+                if (error) {
+                    status = 500
+                    errors.push(error)
+                }
+            })
+			  if (process.env.EMAIL_API_ENDPOINT_URL && process.env.EMAIL_API_API_KEY)
+            sendFeedback(body.text, error => {
+                if (error) {
+                    status = 500
+                    errors.push(error)
+                }
+            })
+
+        res.status(status).json({ errors })
     }
 });
 
