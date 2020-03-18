@@ -21,16 +21,17 @@ const sendFeedback = (message, callback) => {
             "content-type": "application/json",
             "apikey": apiKey
         },
-        json: requestBody}, (error, response) => {
-        if (response.statusCode === 200) {
-            callback(undefined, 'Message sent!');
-        } else {
+        json: requestBody
+    }, (error, response) => {
+        if (error) {
             console.error('error:', error);
             console.error('statusCode:', response.statusCode);
             callback(error, undefined);
         }
+        else if (response.statusCode && response.statusCode === 200) {
+            callback(undefined, 'Message sent!');
+        }
     });
-
 };
 
 module.exports = sendFeedback;
