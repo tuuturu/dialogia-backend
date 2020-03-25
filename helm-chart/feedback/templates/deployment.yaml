@@ -39,7 +39,7 @@ spec:
             - name: EMAIL_API_ENDPOINT_URL
               value: {{ .Values.emailApiEndpoint }}
             - name: KEYCLOAK_AUTH_URL
-              value: {{ .Values.keycloackAuthUrl }}
+              value: {{ .Values.keycloakAuthUrl }}
             - name: EMAIL_API_API_KEY
               valueFrom:
                 secretKeyRef:
