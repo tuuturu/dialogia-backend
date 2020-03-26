@@ -1,0 +1,9 @@
+{{- if .Values.app.slackWebhookURL }}
+apiVersion: v1
+data:
+    url: {{ .Values.app.slackWebhookURL | b64enc }}
+kind: Secret
+metadata:
+    name: {{ .Values.app.slackWebhookRef }}
+type: Opaque
+{{- end }}

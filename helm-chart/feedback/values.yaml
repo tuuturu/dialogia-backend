@@ -13,18 +13,26 @@ imagePullSecret: regsecret
 nameOverride: ""
 fullnameOverride: ""
 
-### ENV variable config
-emailTarget: developerportal@oslo.kommune.no
-emailApiEndpoint: https://email-test.api-test.oslo.kommune.no/email
-keycloakAuthUrl: https://login-test.oslo.kommune.no/auth
-
-
 service:
   type: ClusterIP
   externalPort: 80
   internalPort: 3000
 
 app:
+  env:
+    - name: DISCOVERY_URL
+      value: https://login-test.oslo.kommune.no/auth/realms/api-catalog/.well-known/openid-configuration
+  #  - name: RECIPIENT_EMAIL_ADDRESS
+  #    value: developerportal@oslo.kommune.no
+  #  - name: EMAIL_API_ENDPOINT_URL
+  #    value: https://email-test.api-test.oslo.kommune.no/email
+
+  #apiKey:
+  apiKeyRef: feedback-email-api-key
+
+  #slackWebhookURL:
+  slackWebhookRef: feedback-slack-webhook
+
   runAsUser: 1001
   runAsGroup: 1001
   readinessProbe:

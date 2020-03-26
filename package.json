@@ -1,6 +1,6 @@
 {
   "name": "feedback",
-  "version": "1.0.3",
+  "version": "1.0.6",
   "description": "Handle user feedback",
   "main": "index.js",
   "scripts": {
@@ -19,6 +19,6 @@
     "express-jwt": "^5.3.1",
     "jwks-rsa": "^1.6.2",
     "morgan": "^1.9.1",
-    "request": "^2.88.0"
+    "axios": "^0.19.2"
   }
 }
