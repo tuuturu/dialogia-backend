@@ -1,9 +1,9 @@
-{{- if not .Values.app.apiKeyRef }}
+{{- if .Values.app.apiKey }}
 apiVersion: v1
 data:
     api-key: {{ .Values.app.apiKey | b64enc }}
 kind: Secret
 metadata:
-    name: {{ template "feedback.fullname" . }}-email-api-key
+    name: {{ .Values.app.apiKeyRef }}
 type: Opaque
-        {{- end }}
+{{- end }}

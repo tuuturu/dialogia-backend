@@ -1,60 +1,42 @@
 require('dotenv').config()
 const express = require('express');
 const logger = require('morgan');
-const sendFeedback = require('./feedbackSender');
-const slackSender = require('./slackSender')
-const authMiddleware = require('./auth.js');
+
+const { getOIDCOptions, authMiddleware } = require('./auth')
+const feedbackRouter = require('./feature/feedback/router')
 
 const PORT = 3000;
-const BASE_ENTRYPOINT = '/feedback';
 const HEALTH_ENDPOINT = '/health';
 
-const app = express();
+function createApp(oidc_options) {
+    const app = express();
 
-app.disable('etag')
-app.use(logger('dev'));
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+    app.disable('etag')
+    app.use(logger('dev'));
+    app.use(express.urlencoded({ extended: false }));
+    app.use(express.json());
 
-app.use(function (err, req, res, next) {
-    if (err.name === 'UnauthorizedError') {
-        res.status(401).send('Invalid or missing token...');
-    }
-});
+    app.get(HEALTH_ENDPOINT, function (req, res) {
+        res.sendStatus(200);
+    });
 
-app.post(BASE_ENTRYPOINT, authMiddleware, function (req, res) {
-    const body = req.body;
-    if (!body || !body.text) {
-        res.status(400).send('text attribute required!');
-    } else if (body.text.length < 5 || body.text.length > 500) {
-        res.status(400).send('text attribute needs to be between 5 and 500 characters!');
-    } else {
-    	  let status = 200
-			  const errors = []
+    app.use(authMiddleware(oidc_options))
 
-        if (process.env.SLACK_WEBHOOK_URL)
-            slackSender(body.text, error => {
-                if (error) {
-                    status = 500
-                    errors.push(error)
-                }
-            })
-			  if (process.env.EMAIL_API_ENDPOINT_URL && process.env.EMAIL_API_API_KEY)
-            sendFeedback(body.text, error => {
-                if (error) {
-                    status = 500
-                    errors.push(error)
-                }
-            })
+    app.use('/feedback', feedbackRouter)
 
-        res.status(status).json({ errors })
-    }
-});
+    app.use(function (err, req, res, next) {
+        if (err.name === 'UnauthorizedError') {
+            res.status(401).send('Invalid or missing token...');
+        }
+    });
+    return app
+}
 
-app.get(HEALTH_ENDPOINT, function (req, res) {
-    res.sendStatus(200);
-});
+getOIDCOptions(process.env.DISCOVERY_URL)
+  .then(oidc_options => {
+      const app = createApp(oidc_options)
 
-app.listen(PORT, () => {
-    console.log(`Server started listening on port ${PORT}`)
-});
+      app.listen(PORT, () => {
+          console.log(`Server started listening on port ${PORT}`)
+      })
+  })

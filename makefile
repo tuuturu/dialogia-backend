@@ -19,6 +19,9 @@ remoteDigest = $(shell curl --verbose --header "Accept: application/vnd.docker.d
 help: ## Print this menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+# Helpers
+get-gopass-secret = $(or $(shell gopass show devportal/$(1) $(2)), $(error gopass command failed))
+
 check-tag:
 ifeq ($(TAG), )
 	@echo "TAG is required and must be sepcified with 'make <command> TAG=xxx'"
@@ -57,21 +60,29 @@ deploy: check-tag check-sha256 ## Deploy image with given TAG to environment giv
 		--install \
 		--reset-values
 
-build-prod:
+build-image:
 	docker build \
 		--tag ${REPOSITORY}/${NAME}:${VERSION} \
 		.
-push-image-prod:
+push-docker-image:
 	docker push ${REPOSITORY}/${NAME}:${VERSION}
+deploy-test:
+	$(eval SLACK_WEBHOOK_URL := $(call get-gopass-secret,misc/feedback-api-slack-webhook-url,-o))
+	helm --tiller-namespace=developerportal-test --namespace=developerportal-test upgrade \
+		--install ${NAME} ${helmDir} \
+		--set podLabels.imageTag=${VERSION} \
+		--set image.repository=${REPOSITORY}/${NAME}:${VERSION} \
+		--set app.slackWebhookURL=$(SLACK_WEBHOOK_URL) \
+		--values ${helmDir}/values-test.yaml \
+		--reset-values
 deploy-prod:
+	$(eval SLACK_WEBHOOK_URL := $(call get-gopass-secret,misc/feedback-api-slack-webhook-url,-o))
 	helm --tiller-namespace=developerportal --namespace=developerportal upgrade \
 		--install ${NAME} ${helmDir} \
 		--set podLabels.imageTag=${VERSION} \
-		--set $(apiKeyRef) \
-		--set keycloakAuthUrl=https://login.oslo.kommune.no/auth \
-		--set emailApiEndpoint=https://email.api.oslo.kommune.no/email \
-		--set ingress.host=devportal-feedback.k8s.oslo.kommune.no \
 		--set image.repository=${REPOSITORY}/${NAME}:${VERSION} \
+		--set app.slackWebhookURL=$(SLACK_WEBHOOK_URL) \
+		--values ${helmDir}/values-prod.yaml \
 		--reset-values
 
 
@@ -91,10 +102,11 @@ test: ## Run tests
 	npm run test
 
 generate-dotenv-file: ## Generate .env file template
-	echo "RECIPIENT_EMAIL_ADDRESS=developerportal@oslo.kommune.no" >> .env
+	echo "DISCOVERY_URL=https://login-test.oslo.kommune.no/auth/realms/api-catalog/.well-known/openid-configuration" >> .env
 	echo "EMAIL_API_API_KEY=" >> .env
 	echo "EMAIL_API_ENDPOINT_URL=https://email-test.api-test.oslo.kommune.no/email" >> .env
-	echo "KEYCLOAK_AUTH_URL=https://login-test.oslo.kommune.no/auth" >> .env
+	echo "RECIPIENT_EMAIL_ADDRESS=developerportal@oslo.kommune.no" >> .env
+	echo "SLACK_WEBHOOK_URL=#optional; Feedback" >> .env
 
 clean: ## Clean up project directory
 	@rm -rf node_modules || true

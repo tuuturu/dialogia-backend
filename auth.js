@@ -1,19 +1,31 @@
+const axios = require('axios')
 const jwt = require('express-jwt');
 const jwks = require('jwks-rsa');
-const envConfig = require('./envConfig');
 
-const keycloakAuthUrl = envConfig.keycloakAuthServerUrl;
+async function getOIDCOptions(discovery_url) {
+    const { data } = await axios.request({
+        url: discovery_url,
+        method: 'get',
+    })
 
-const jwtCheck = jwt({
-    secret: jwks.expressJwtSecret({
-        cache: true,
-        rateLimit: true,
-        jwksRequestsPerMinute: 5,
-        jwksUri: `${envConfig.keycloakAuthServerUrl}/realms/api-catalog/protocol/openid-connect/certs`
-    }),
-    audience: 'account',
-    issuer: `${envConfig.keycloakAuthServerUrl}/realms/api-catalog`,
-    algorithms: ['RS256']
-});
+    return data
+}
 
-module.exports = jwtCheck;
+function setupMiddleware({ jwks_uri, issuer }) {
+    return jwt({
+        secret: jwks.expressJwtSecret({
+            cache: true,
+            rateLimit: true,
+            jwksRequestsPerMinute: 5,
+            jwksUri: jwks_uri
+        }),
+        audience: 'account',
+        issuer,
+        algorithms: ['RS256']
+    })
+}
+
+module.exports = {
+    authMiddleware: setupMiddleware,
+    getOIDCOptions
+}

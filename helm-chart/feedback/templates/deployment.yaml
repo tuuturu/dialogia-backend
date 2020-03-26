@@ -34,22 +34,23 @@ spec:
               containerPort: {{ .Values.service.internalPort }}
               protocol: TCP
           env:
-            - name: RECIPIENT_EMAIL_ADDRESS
-              value: {{ .Values.emailTarget }}
-            - name: EMAIL_API_ENDPOINT_URL
-              value: {{ .Values.emailApiEndpoint }}
-            - name: KEYCLOAK_AUTH_URL
-              value: {{ .Values.keycloakAuthUrl }}
+          {{- if .Values.app.apiKey }}
             - name: EMAIL_API_API_KEY
               valueFrom:
                 secretKeyRef:
-                  {{- if .Values.app.apiKeyRef }}
                   name: {{ .Values.app.apiKeyRef }}
-                    {{- else }}
-                  name: {{ template "feedback.fullname" . }}-email-api-key
-                          {{- end }}
                   key: api-key
-              value: {{ .Values.app.apiKey | quote }}
+          {{- end }}
+          {{- if .Values.app.slackWebhookURL }}
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.app.slackWebhookRef }}
+                  key: url
+          {{- end }}
+          {{- with .Values.app.env }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           securityContext:
             runAsNonRoot: true
             runAsUser: {{ .Values.app.runAsUser }}
