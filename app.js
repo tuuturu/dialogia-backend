@@ -3,6 +3,7 @@ const express = require('express');
 const logger = require('morgan');
 
 const { getOIDCOptions, authMiddleware } = require('./auth')
+const slackChannelsRouter = require('./feature/slack_channels/router')
 const feedbackRouter = require('./feature/feedback/router')
 
 const PORT = 3000;
@@ -22,6 +23,7 @@ function createApp(oidc_options) {
 
     app.use(authMiddleware(oidc_options))
 
+    app.use('/channels', slackChannelsRouter)
     app.use('/feedback', feedbackRouter)
 
     app.use(function (err, req, res, next) {
