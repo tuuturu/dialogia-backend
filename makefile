@@ -68,20 +68,24 @@ push-docker-image:
 	docker push ${REPOSITORY}/${NAME}:${VERSION}
 deploy-test:
 	$(eval SLACK_WEBHOOK_URL := $(call get-gopass-secret,misc/feedback-api-slack-webhook-url,-o))
+	$(eval SLACK_CHANNELS_TOKEN := $(call get-gopass-secret,misc/feedback-api-slack-channel-token,-o))
 	helm --tiller-namespace=developerportal-test --namespace=developerportal-test upgrade \
 		--install ${NAME} ${helmDir} \
 		--set podLabels.imageTag=${VERSION} \
 		--set image.repository=${REPOSITORY}/${NAME}:${VERSION} \
 		--set app.slackWebhookURL=$(SLACK_WEBHOOK_URL) \
+		--set app.slackChannelsToken=$(SLACK_CHANNELS_TOKEN) \
 		--values ${helmDir}/values-test.yaml \
 		--reset-values
 deploy-prod:
 	$(eval SLACK_WEBHOOK_URL := $(call get-gopass-secret,misc/feedback-api-slack-webhook-url,-o))
+	$(eval SLACK_CHANNELS_TOKEN := $(call get-gopass-secret,misc/feedback-api-slack-channel-token,-o))
 	helm --tiller-namespace=developerportal --namespace=developerportal upgrade \
 		--install ${NAME} ${helmDir} \
 		--set podLabels.imageTag=${VERSION} \
 		--set image.repository=${REPOSITORY}/${NAME}:${VERSION} \
 		--set app.slackWebhookURL=$(SLACK_WEBHOOK_URL) \
+		--set app.slackChannelsToken=$(SLACK_CHANNELS_TOKEN) \
 		--values ${helmDir}/values-prod.yaml \
 		--reset-values
 
@@ -102,11 +106,15 @@ test: ## Run tests
 	npm run test
 
 generate-dotenv-file: ## Generate .env file template
-	echo "DISCOVERY_URL=https://login-test.oslo.kommune.no/auth/realms/api-catalog/.well-known/openid-configuration" >> .env
-	echo "EMAIL_API_API_KEY=" >> .env
-	echo "EMAIL_API_ENDPOINT_URL=https://email-test.api-test.oslo.kommune.no/email" >> .env
-	echo "RECIPIENT_EMAIL_ADDRESS=developerportal@oslo.kommune.no" >> .env
-	echo "SLACK_WEBHOOK_URL=#optional; Feedback" >> .env
+	$(eval SLACK_WEBHOOK_URL := $(call get-gopass-secret,misc/feedback-api-slack-webhook-url,-o))
+	$(eval SLACK_CHANNELS_TOKEN := $(call get-gopass-secret,misc/feedback-api-slack-channel-token,-o))
+	@echo "DISCOVERY_URL=https://login-test.oslo.kommune.no/auth/realms/api-catalog/.well-known/openid-configuration" >> .env
+	@echo "EMAIL_API_API_KEY= #optional; required if /feedback should send an email" >> .env
+	@echo "EMAIL_API_ENDPOINT_URL=https://email-test.api-test.oslo.kommune.no/email" >> .env
+	@echo "RECIPIENT_EMAIL_ADDRESS=developerportal@oslo.kommune.no" >> .env
+	@echo "SLACK_WEBHOOK_URL=$(SLACK_WEBHOOK_URL) #optional; Required if /feedback should post to slack" >> .env
+	@echo "SLACK_CHANNELS_TOKEN=$(SLACK_CHANNELS_TOKEN) #optional; required if /channels should be active" >> .env
+	@echo "⚙️ .env file generated"
 
 clean: ## Clean up project directory
 	@rm -rf node_modules || true
