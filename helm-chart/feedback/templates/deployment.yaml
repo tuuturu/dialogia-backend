@@ -48,6 +48,13 @@ spec:
                   name: {{ .Values.app.slackWebhookRef }}
                   key: url
           {{- end }}
+          {{- if .Values.app.slackChannelsToken }}
+            - name: SLACK_CHANNELS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.app.slackChannelsTokenRef }}
+                  key: token
+          {{- end }}
           {{- with .Values.app.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
