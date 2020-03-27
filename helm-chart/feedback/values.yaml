@@ -33,6 +33,9 @@ app:
   #slackWebhookURL:
   slackWebhookRef: feedback-slack-webhook
 
+  #slackChannelsToken:
+  slackChannelsTokenRef: feedback-slack-channel-list-token
+
   runAsUser: 1001
   runAsGroup: 1001
   readinessProbe:

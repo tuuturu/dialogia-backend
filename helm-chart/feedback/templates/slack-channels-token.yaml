@@ -1,0 +1,9 @@
+{{- if .Values.app.slackChannelsToken }}
+apiVersion: v1
+data:
+    token: {{ .Values.app.slackChannelsToken | b64enc }}
+kind: Secret
+metadata:
+    name: {{ .Values.app.slackChannelsTokenRef }}
+type: Opaque
+{{- end }}
