@@ -1,4 +1,5 @@
 require('dotenv').config()
+const cors = require('cors')
 const express = require('express');
 const logger = require('morgan');
 
@@ -14,6 +15,7 @@ function createApp(oidc_options) {
 
     app.disable('etag')
     app.use(logger('dev'))
+    app.use(cors())
     app.use(express.urlencoded({ extended: false }))
     app.use(express.json())
 
