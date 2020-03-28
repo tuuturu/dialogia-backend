@@ -115,7 +115,7 @@ Subject: <input type="text" id="subject" value="What's the deal about umbrella h
             console.log('WebSocket connection established')
             const clientInfo = {
                 type: 'register',
-                sender: dom.getMyNick()
+	            clientName: dom.getMyNick()
             }
 
             chatClient.sendToServer(clientInfo)
@@ -130,10 +130,9 @@ Subject: <input type="text" id="subject" value="What's the deal about umbrella h
             console.log("Receive message:", event.data);
 
             const serverEvent = JSON.parse(event.data)
-            const msg = serverEvent.message
-            const sender = serverEvent.sender
+            const msg =
 
-            dom.addChatWindowMessage(sender, msg)
+            dom.addChatWindowMessage(serverEvent.from, serverEvent.message)
         }
 
 	})();
