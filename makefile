@@ -1,120 +1,29 @@
 .PHONY: help
 SHELL = /bin/bash
 
-NAME=`jq .name package.json -r`
-VERSION=`jq .version package.json -r`
-REPOSITORY = container-registry.oslo.kommune.no
-dockerImage = developer-portal-feedback
-imagePath = ${REPOSITORY}/${dockerImage}
-helmDir = helm-chart/feedback
-
-# secrets
-apiKey=feedback-email-api-key
-apiKeyRef=app.apiKeyRef=${apiKey}
-
-# Locally stored ref to repository sha256 digest and actual repository sha256 digest
-localDigest = $(shell docker inspect --format='{{.RepoDigests}}' ${imagePath}:${TAG} | tail -c -73 | head -c 71)
-remoteDigest = $(shell curl --verbose --header "Accept: application/vnd.docker.distribution.manifest.v2+json" "https://${REPOSITORY}/v2/${dockerImage}/manifests/${TAG}" 2>&1 | grep Docker-Content-Digest | tail -c 73)
+VERSION=`cat package.json | jq -r .version`
+DOCKER_IMAGE=docker.pkg.github.com/tuuturu/dialogia-backend
 
 help: ## Print this menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-# Helpers
-get-gopass-secret = $(or $(shell gopass show devportal/$(1) $(2)), $(error gopass command failed))
-
-check-tag:
-ifeq ($(TAG), )
-	@echo "TAG is required and must be sepcified with 'make <command> TAG=xxx'"
-	@exit 1
-endif
-
-check-sha256: check-tag ## Check if image with tag is pushed and ready
-ifeq ($(remoteDigest), )
-	@echo Image for tag \"${TAG}\" is not in ${REPOSITORY}, did you forget to push the image?
-	@exit 1
-else ifneq (${localDigest}, ${remoteDigest})
-	@echo Local__digest --- ${localDigest}
-	@echo Remote_digest --- ${remoteDigest}
-	@echo -n "Remote and local sha256 of image does not match, did you forget to push your latest image? \
-	Remote image will be used, continue? [y/N] " && read ans && [ $${ans:-N} = y ]
-else
-	@echo Remote sha256 for image with TAG \"${TAG}\" matches local image.
-endif
-
-build: check-tag ## Build Docker image
-	docker build \
-		--tag ${imagePath}:${TAG} .
-
-push-image: check-tag ## Push image to repository
-	docker push ${imagePath}:${TAG}
-
-deploy: check-tag check-sha256 ## Deploy image with given TAG to environment given by TAG. USAGE: make deploy TAG=0.1.XX
-	helm upgrade \
-		feedback \
-		${helmDir} \
-		-f ${helmDir}/values.yaml \
-		--set image.repository=${imagePath}@${remoteDigest} \
-		--set podLabels.imageTag=${TAG} \
-		--tiller-namespace=developerportal-test \
-		--set $(apiKeyRef) \
-		--install \
-		--reset-values
-
 build-image:
 	docker build \
-		--tag ${REPOSITORY}/${NAME}:${VERSION} \
+		--tag ${DOCKER_IMAGE}:${VERSION} \
 		.
-push-docker-image:
-	docker push ${REPOSITORY}/${NAME}:${VERSION}
-deploy-test:
-	$(eval SLACK_WEBHOOK_URL := $(call get-gopass-secret,misc/feedback-api-slack-webhook-url,-o))
-	$(eval SLACK_CHANNELS_TOKEN := $(call get-gopass-secret,misc/feedback-api-slack-channel-token,-o))
-	helm --tiller-namespace=developerportal-test --namespace=developerportal-test upgrade \
-		--install ${NAME} ${helmDir} \
-		--set podLabels.imageTag=${VERSION} \
-		--set image.repository=${REPOSITORY}/${NAME}:${VERSION} \
-		--set app.slackWebhookURL=$(SLACK_WEBHOOK_URL) \
-		--set app.slackChannelsToken=$(SLACK_CHANNELS_TOKEN) \
-		--values ${helmDir}/values-test.yaml \
-		--reset-values
-deploy-prod:
-	$(eval SLACK_WEBHOOK_URL := $(call get-gopass-secret,misc/feedback-api-slack-webhook-url,-o))
-	$(eval SLACK_CHANNELS_TOKEN := $(call get-gopass-secret,misc/feedback-api-slack-channel-token,-o))
-	helm --tiller-namespace=developerportal --namespace=developerportal upgrade \
-		--install ${NAME} ${helmDir} \
-		--set podLabels.imageTag=${VERSION} \
-		--set image.repository=${REPOSITORY}/${NAME}:${VERSION} \
-		--set app.slackWebhookURL=$(SLACK_WEBHOOK_URL) \
-		--set app.slackChannelsToken=$(SLACK_CHANNELS_TOKEN) \
-		--values ${helmDir}/values-prod.yaml \
-		--reset-values
+push-image:
+	docker push ${DOCKER_IMAGE}:${VERSION}
 
+deploy:
+	@echo MANUAL PREREQUISITES:
+	@echo ssh into dialogia.tuuturu.org, and run
+	@echo docker login docker.pkg.github.com -u yourusername
+	@echo
+	@echo and enter your github token. The token should ideally just have read access to images/packages.
+
+	scp docker-compose.yaml dialogia.tuuturu.org:/srv/dialogia
+	ssh -t dialogia.tuuturu.org "cd /srv/dialogia; docker-compose pull; docker-compose up -d"
+	ssh -t dialogia.tuuturu.org "docker ps"
 
 run: ## Run the service locally
 	npx nodemon app.js
-
-run-in-docker: check-tag ## Run the service in Docker
-	docker stop ${NAME} || true
-	docker rm ${NAME} || true
-	docker run \
-		-d -p 3000:3000 \
-		--name ${NAME} \
-		--env-file .env-docker \
-		${imagePath}:${TAG}
-
-test: ## Run tests
-	npm run test
-
-generate-dotenv-file: ## Generate .env file template
-	$(eval SLACK_WEBHOOK_URL := $(call get-gopass-secret,misc/feedback-api-slack-webhook-url,-o))
-	$(eval SLACK_CHANNELS_TOKEN := $(call get-gopass-secret,misc/feedback-api-slack-channel-token,-o))
-	@echo "DISCOVERY_URL=https://login-test.oslo.kommune.no/auth/realms/api-catalog/.well-known/openid-configuration" >> .env
-	@echo "EMAIL_API_API_KEY= #optional; required if /feedback should send an email" >> .env
-	@echo "EMAIL_API_ENDPOINT_URL=https://email-test.api-test.oslo.kommune.no/email" >> .env
-	@echo "RECIPIENT_EMAIL_ADDRESS=developerportal@oslo.kommune.no" >> .env
-	@echo "SLACK_WEBHOOK_URL=$(SLACK_WEBHOOK_URL) #optional; Required if /feedback should post to slack" >> .env
-	@echo "SLACK_CHANNELS_TOKEN=$(SLACK_CHANNELS_TOKEN) #optional; required if /channels should be active" >> .env
-	@echo "⚙️ .env file generated"
-
-clean: ## Clean up project directory
-	@rm -rf node_modules || true

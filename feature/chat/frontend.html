@@ -101,7 +101,8 @@ Subject: <input type="text" id="subject" value="What's the deal about umbrella h
 
     let chatClient;
 	(function() {
-        let ws = new WebSocket("ws://localhost:8081")
+        //let ws = new WebSocket("ws://localhost:8081")
+        let ws = new WebSocket("ws://dialogia.tuuturu.org:8081")
         const dom = new Dom()
         chatClient = new ChatClient(ws, dom)
 
