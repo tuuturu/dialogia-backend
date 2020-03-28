@@ -30,59 +30,111 @@ Subject: <input type="text" id="subject" value="What's the deal about umbrella h
 <input type="button" id="sendButton" value="Send" onclick="sendMessage()" />
 
 <h2>Messages</h2>
-<textarea>Here goes chat</textarea>
+<textarea id="chatWindow" readonly></textarea>
 <script>
+    class ChatClient {
+        constructor(websocket, dom) {
+            this.websocket = websocket
+            this.dom = dom
+        }
 
-	let ws;
+	    sendMessage() {
+            const domMsg = this.dom.getMessage()
 
+            console.log(domMsg)
+
+            const clientEvent = {
+                type: "message",
+                message: domMsg
+            }
+
+            this.sendToServer(clientEvent)
+		    this.dom.addChatWindowMessage(this.dom.getMyNick(), domMsg);
+	    }
+
+	    sendToServer(clientEvent) {
+		    console.log("Sending", clientEvent)
+            this.websocket.send(JSON.stringify(clientEvent))
+	    }
+    }
+
+    class Dom {
+	    getRandomNick() {
+		    const nicks = [
+			    'Baldemarus Pluchet',
+			    'Alger Gellhaus',
+			    'Baudet Pulszky',
+			    'Claren Corleone',
+			    'Cyril Grappasonni',
+			    'Garnot Basirius',
+			    'Hrodric Garicoits',
+			    'Eaduin Fei',
+			    'Owin Letamendi',
+			    'Gorri Ambrogi'
+		    ];
+		    const randomNumber = Math.floor(Math.random()*nicks.length);
+		    return nicks[randomNumber];
+	    }
+
+	    setRandomNick() {
+            document.getElementById("nick").value = this.getRandomNick()
+        }
+
+	    getMyNick() {
+		    return document.getElementById('nick').value
+	    }
+
+	    getMessage() {
+            return document.getElementById('sendMessageText').value
+        }
+
+	    addChatWindowMessage(sender, msg) {
+		    document.getElementById("chatWindow").value += "<" + sender + "> " + msg + "\n";
+	    }
+
+    }
+
+    let chatClient;
 	(function() {
-        ws = new WebSocket("ws://localhost:8081");
-        document.getElementById("nick").value = getRandomNick();
+        let ws = new WebSocket("ws://localhost:8081")
+        const dom = new Dom()
+        chatClient = new ChatClient(ws, dom)
+
+        dom.setRandomNick()
+
+        ws.onerror = function() {
+            console.log('WebSocket error')
+        }
+
+        ws.onopen = function() {
+            console.log('WebSocket connection established')
+            const clientInfo = {
+                type: 'register',
+                sender: dom.getMyNick()
+            }
+
+            chatClient.sendToServer(clientInfo)
+        }
+
+        ws.onclose = function() {
+            console.log('WebSocket connection closed')
+            ws = null;
+        }
+
+        ws.onmessage = function (event) {
+            console.log("Receive message:", event.data);
+
+            const serverEvent = JSON.parse(event.data)
+            const msg = serverEvent.message
+            const sender = serverEvent.sender
+
+            dom.addChatWindowMessage(sender, msg)
+        }
 
 	})();
 
-	function getRandomNick() {
-        var nicks = [
-	        'Baldemarus Pluchet',
-	        'Alger Gellhaus',
-	        'Baudet Pulszky',
-	        'Claren Corleone',
-	        'Cyril Grappasonni',
-	        'Garnot Basirius',
-	        'Hrodric Garicoits',
-	        'Eaduin Fei',
-	        'Owin Letamendi',
-	        'Gorri Ambrogi'
-        ];
-        const randomNumber = Math.floor(Math.random()*nicks.length);
-        return nicks[randomNumber];
-    }
-
-    function sendMessage() {
-    	const msg = document.getElementById('sendMessageText').value
-    	console.log(msg)
-        ws.send(msg)
-
-	    document.getElementById('sendMessageText').value = ''
-    }
-
-    ws.onerror = function() {
-	    console.log('WebSocket error')
-    }
-
-    ws.onopen = function() {
-	    console.log('WebSocket connection established')
-	    ws.send('hello, i am client')
-    }
-
-    ws.onclose = function() {
-	    console.log('WebSocket connection closed')
-        ws = null;
-    }
-
-    ws.onmessage = function (event) {
-    	console.log("Receive message:");
-        console.log(event.data);
+	const sendMessage = function() {
+		chatClient.sendMessage()
     }
 </script>
 </body>
