@@ -1,4 +1,5 @@
 
+// subjectsDatabase = [ { value: 'covid-19', }, ]
 const subjectsDatabase = []
 
 function getAllSubjects() {
