@@ -2,7 +2,7 @@ version: "3.7"
 
 services:
   backend:
-    image: docker.pkg.github.com/tuuturu/dialogia-backend/dialogia-backend:0.0.1
+    image: docker.pkg.github.com/tuuturu/dialogia-backend/dialogia-backend:0.0.2
     build: .
     ports:
       - '3000:3000'
