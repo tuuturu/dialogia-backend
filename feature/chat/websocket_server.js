@@ -2,7 +2,7 @@ const WebSocket = require('ws');
 const { nanoid } = require('nanoid')
 
 console.log("_------------------------------- INITING CLIENTS")
-const clients = {}
+const clients = []
 
 class Client {
 	constructor(guid, name, websocket) {
@@ -43,7 +43,7 @@ function handleClientEvent(webSocketServer, websocket, clientEvent) {
 	if (clientEvent.type === "register")
 		registerClient(websocket, clientEvent);
 	else if (clientEvent.type === "message")
-		broadcast(webSocketServer, websocket, clientEvent)
+		broadcast(websocket, clientEvent)
 	else
 		console.warn("No handler for type: " + clientEvent.type)
 }
@@ -52,31 +52,32 @@ function registerClient(websocket, clientEvent) {
 	console.log("Registering client", clientEvent.clientName)
 	console.log("* Old number of clients: ", Object.keys(clients).length)
 	//console.log(websocket)
-	clients[websocket] = new Client(nanoid(), clientEvent.clientName, websocket)
+	//clients[websocket] = new Client(nanoid(), clientEvent.clientName, websocket)
+	clients.push(new Client(nanoid(), clientEvent.clientName, websocket))
 	console.log("* New number of clients: ", Object.keys(clients).length)
 }
 
-function broadcast(webSocketServer, sourceClientWebsocket, clientEvent) {
-	webSocketServer.clients.forEach(function(client) {
-		if (client !== sourceClientWebsocket && client.readyState === WebSocket.OPEN) {
-			sendServerEvent(client, createServerEvent("SOMEBODY", clientEvent.message))
-		} else {
-			console.log("Skipping someone")
-		}
+function getClientByWebsocket(websocket) {
+	return clients.filter(client => client.websocket === websocket)[0]
+}
 
-		/*
-				console.log("Considering", client.name)
+function broadcast(sourceClientWebsocket, clientEvent) {
+	clients.forEach((client) => {
+		console.log("Considering", client.name)
 
-				const client = clients[websocket]
-
-		if (websocket != client.websocket) {
+		if (sourceClientWebsocket != client.websocket) {
 			console.log("broadcasting to ", client.name)
+			const sourceClient = getClientByWebsocket(sourceClientWebsocket)
+			console.log("sourceClient", sourceClient)
+			sendServerEvent(client.websocket, createServerEvent(sourceClient.name, clientEvent.message))
 		} else {
 			console.log("NOT broadcasting to ", client.name)
 		}
-		 */
-	});
+	})
+
+
 }
+
 
 module.exports = {
 	start
