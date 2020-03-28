@@ -1,0 +1,89 @@
+<html>
+<style>
+    input[type=text] {
+        width: 500px;
+    }
+
+    textarea {
+        -webkit-transition: all 0.30s ease-in-out;
+        -moz-transition: all 0.30s ease-in-out;
+        -ms-transition: all 0.30s ease-in-out;
+        -o-transition: all 0.30s ease-in-out;
+        outline: none;
+        padding: 3px 0px 3px 3px;
+        margin: 5px 1px 3px 0px;
+        border: 1px solid #DDDDDD;
+        width: 60%;
+        height: 20%;
+    }
+</style>
+<body>
+
+<h1>Chat</h1>
+
+Nick: <input type="text" id="nick" /><br/>
+Subject: <input type="text" id="subject" value="What's the deal about umbrella hats?" />
+
+<h2>Send message</h2>
+
+<input type="text" id="sendMessageText" />
+<input type="button" id="sendButton" value="Send" onclick="sendMessage()" />
+
+<h2>Messages</h2>
+<textarea>Here goes chat</textarea>
+<script>
+
+	let ws;
+
+	(function() {
+        ws = new WebSocket("ws://localhost:8081");
+        document.getElementById("nick").value = getRandomNick();
+
+	})();
+
+	function getRandomNick() {
+        var nicks = [
+	        'Baldemarus Pluchet',
+	        'Alger Gellhaus',
+	        'Baudet Pulszky',
+	        'Claren Corleone',
+	        'Cyril Grappasonni',
+	        'Garnot Basirius',
+	        'Hrodric Garicoits',
+	        'Eaduin Fei',
+	        'Owin Letamendi',
+	        'Gorri Ambrogi'
+        ];
+        const randomNumber = Math.floor(Math.random()*nicks.length);
+        return nicks[randomNumber];
+    }
+
+    function sendMessage() {
+    	const msg = document.getElementById('sendMessageText').value
+    	console.log(msg)
+        ws.send(msg)
+
+	    document.getElementById('sendMessageText').value = ''
+    }
+
+    ws.onerror = function() {
+	    console.log('WebSocket error')
+    }
+
+    ws.onopen = function() {
+	    console.log('WebSocket connection established')
+	    ws.send('hello, i am client')
+    }
+
+    ws.onclose = function() {
+	    console.log('WebSocket connection closed')
+        ws = null;
+    }
+
+    ws.onmessage = function (event) {
+    	console.log("Receive message:");
+        console.log(event.data);
+    }
+</script>
+</body>
+</html>
