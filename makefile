@@ -1,18 +1,19 @@
 .PHONY: help
 SHELL = /bin/bash
 
-VERSION=`cat package.json | jq -r .version`
-DOCKER_IMAGE=docker.pkg.github.com/tuuturu/dialogia-backend
+NAME=`jq .name -r package.json`
+VERSION=`jq .version -r package.json`
+REPOSITORY=docker.pkg.github.com/tuuturu/dialogia-backend
 
 help: ## Print this menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 build-image:
 	docker build \
-		--tag ${DOCKER_IMAGE}:${VERSION} \
+		--tag ${REPOSITORY}/${NAME}:${VERSION} \
 		.
 push-image:
-	docker push ${DOCKER_IMAGE}:${VERSION}
+	docker push ${REPOSITORY}/${NAME}:${VERSION}
 
 deploy:
 	@echo MANUAL PREREQUISITES:
