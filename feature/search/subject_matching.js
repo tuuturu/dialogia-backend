@@ -1,8 +1,7 @@
 
-
 function matchingFilter(query) {
 	return subject => {
-		return subject.value.includes(query)
+		return subject.value.toLowerCase().includes(query.toLowerCase())
 	}
 }
 
