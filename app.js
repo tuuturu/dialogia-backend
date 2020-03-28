@@ -3,8 +3,8 @@ const express = require('express');
 const logger = require('morgan');
 
 //const { getOIDCOptions, authMiddleware } = require('./auth')
-const slackChannelsRouter = require('./feature/slack_channels/router')
-const feedbackRouter = require('./feature/feedback/router')
+const chatRouter = require('./feature/chat/router')
+const searchRouter = require('./feature/search/router')
 
 const PORT = 3000;
 const HEALTH_ENDPOINT = '/health';
@@ -23,8 +23,8 @@ function createApp(oidc_options) {
 
     //app.use(authMiddleware(oidc_options))
 
-    app.use('/channels', slackChannelsRouter)
-    app.use('/feedback', feedbackRouter)
+    app.use('/chat', chatRouter)
+    app.use('/subjects', searchRouter)
 
     app.use(function (err, req, res, next) {
         if (err.name === 'UnauthorizedError') {
