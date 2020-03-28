@@ -2,7 +2,7 @@ require('dotenv').config()
 const express = require('express');
 const logger = require('morgan');
 
-const { getOIDCOptions, authMiddleware } = require('./auth')
+//const { getOIDCOptions, authMiddleware } = require('./auth')
 const slackChannelsRouter = require('./feature/slack_channels/router')
 const feedbackRouter = require('./feature/feedback/router')
 
@@ -13,32 +13,34 @@ function createApp(oidc_options) {
     const app = express();
 
     app.disable('etag')
-    app.use(logger('dev'));
-    app.use(express.urlencoded({ extended: false }));
-    app.use(express.json());
+    app.use(logger('dev'))
+    app.use(express.urlencoded({ extended: false }))
+    app.use(express.json())
 
     app.get(HEALTH_ENDPOINT, function (req, res) {
-        res.sendStatus(200);
+        res.sendStatus(200)
     });
 
-    app.use(authMiddleware(oidc_options))
+    //app.use(authMiddleware(oidc_options))
 
     app.use('/channels', slackChannelsRouter)
     app.use('/feedback', feedbackRouter)
 
     app.use(function (err, req, res, next) {
         if (err.name === 'UnauthorizedError') {
-            res.status(401).send('Invalid or missing token...');
+            res.status(401).send('Invalid or missing token...')
         }
-    });
+    })
+
     return app
 }
 
-getOIDCOptions(process.env.DISCOVERY_URL)
-  .then(oidc_options => {
-      const app = createApp(oidc_options)
+//getOIDCOptions(process.env.DISCOVERY_URL)
+//.then(oidc_options => {
+const oidc_options = undefined
+const app = createApp(oidc_options)
 
-      app.listen(PORT, () => {
-          console.log(`Server started listening on port ${PORT}`)
-      })
-  })
+app.listen(PORT, () => {
+  console.log(`Server started listening on port ${PORT}`)
+})
+//  })
