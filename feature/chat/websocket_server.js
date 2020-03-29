@@ -7,6 +7,9 @@ function sendServerEvent(client, serverEvent) {
 	client.websocket.send(JSON.stringify(serverEvent));
 }
 
+const clients = []
+const subjectToClient = {}
+
 // --- FEATURE: Web socket server
 function start() {
 	const webSocketServer = new WebSocket.Server({ port: 8081 });
@@ -19,11 +22,31 @@ function start() {
 
 			handleClientEvent(ws, clientEvent)
 		});
-	});
 
-	webSocketServer.on('close', function connection(ws) {
-		console.log("CLOSE");
+		ws.on('close', function handle() {
+			console.log("CLOSE")
+			disconnectClient(ws)
+		})
 	});
+}
+
+function disconnectClient(ws) {
+	const disconnectedClient = getClientByWebsocket(ws)
+
+	const index = clients.indexOf(disconnectedClient);
+	if (index > -1) {
+		clients.splice(index, 1);
+	}
+
+	const subjectIndex = subjectToClient[disconnectedClient.subject].indexOf(disconnectedClient)
+	if (subjectIndex > -1) {
+		subjectToClient[disconnectedClient.subject].splice(subjectIndex, 1);
+	}
+
+	if (subjectToClient[disconnectedClient.subject].length == 0)
+		delete subjectToClient[disconnectedClient.subject]
+
+	broadcastParticipantCountForSubject(disconnectedClient.subject)
 }
 
 function handleClientEvent(websocket, clientEvent) {
@@ -35,8 +58,6 @@ function handleClientEvent(websocket, clientEvent) {
 		console.error("No handler for type: " + clientEvent.type)
 }
 // COMMON FOR FEATURES BELOW
-const clients = []
-const subjectToClient = {}
 
 class Client {
 	constructor(guid, websocket, subject) {
@@ -46,13 +67,19 @@ class Client {
 	}
 }
 
-function broadcastToAllClients(sourceClient, data) {
-	subjectToClient[sourceClient.subject].forEach(targetClient => {
+function broadcastToAllClients(subject, data) {
+	if (!subjectToClient.hasOwnProperty(subject))
+		return
+
+	subjectToClient[subject].forEach(targetClient => {
 		sendServerEvent(targetClient, data)
 	})
 }
 
 function broadcastToOtherClients(sourceClient, data) {
+	if (!subjectToClient.hasOwnProperty(sourceClient.subject))
+		return
+
 	subjectToClient[sourceClient.subject].forEach(targetClient => {
 		if (targetClient !== sourceClient) {
 			sendServerEvent(targetClient, data)
@@ -63,14 +90,14 @@ function broadcastToOtherClients(sourceClient, data) {
 // --- FEATURE: Register client
 function handleClientEventRegister(websocket, clientEvent) {
 	const newClient = new Client(nanoid(), websocket, clientEvent.subject)
-	console.log("newClient: " + newClient.guid + ", " + newClient.subject)
+	//console.log("newClient: " + newClient.guid + ", " + newClient.subject)
 
 	registerClient(newClient)
-	broadcastParticipantCountForSubject(newClient)
+	broadcastParticipantCountForSubject(newClient.subject)
 }
 
 function registerClient(newClient) {
-	console.log("registerClient", newClient.subject)
+	//console.log("registerClient", newClient.subject)
 	clients.push(newClient)
 
 	if (!subjectToClient.hasOwnProperty(newClient.subject)) {
@@ -80,15 +107,22 @@ function registerClient(newClient) {
 	subjectToClient[newClient.subject].push(newClient)
 }
 
-function broadcastParticipantCountForSubject(sourceClient) {
-	broadcastToAllClients(sourceClient, {
+function broadcastParticipantCountForSubject(subject) {
+	const participantCount = getParticipantCountForSubject(subject)
+	// console.log("broadcastParticipantCountForSubject", participantCount)
+
+	broadcastToAllClients(subject, {
 		type: "participantCount",
-		count: getParticipantCountForSubject(sourceClient.subject)
+		count: participantCount
 	})
 }
 
 function getParticipantCountForSubject(subject) {
-	console.log("getParticipantCountForSubject",  subject)
+	// console.log("getParticipantCountForSubject", subject)
+	if (!subjectToClient.hasOwnProperty(subject)) {
+		return 0
+	}
+
 	return subjectToClient[subject].length
 }
 
