@@ -1,6 +1,12 @@
 const WebSocket = require('ws');
 const { nanoid } = require('nanoid')
 
+// COMMON FOR FEATURES BELOW
+function sendServerEvent(ws, serverEvent) {
+	console.log("Sending from server", serverEvent)
+	ws.send(JSON.stringify(serverEvent));
+}
+
 // --- FEATURE: Web socket server
 function start() {
 	const webSocketServer = new WebSocket.Server({ port: 8081 });
@@ -14,6 +20,10 @@ function start() {
 			handleClientEvent(ws, clientEvent)
 		});
 	});
+
+	webSocketServer.on('close', function connection(ws) {
+		console.log("CLOSE");
+	});
 }
 
 function handleClientEvent(websocket, clientEvent) {
@@ -24,31 +34,46 @@ function handleClientEvent(websocket, clientEvent) {
 	else
 		console.error("No handler for type: " + clientEvent.type)
 }
-
-function handleClientEventRegister(websocket, clientEvent) {
-	registerClient(websocket, clientEvent)
-	sendServerEvent(websocket, )
-}
-
 // COMMON FOR FEATURES BELOW
 const clients = []
 
 class Client {
-	constructor(guid, name, websocket) {
+	constructor(guid, websocket, subject, name) {
 		this.guid = guid
-		this.name = name
 		this.websocket = websocket
+		this.subject = subject
+		this.name = name
 	}
 }
 
-function sendServerEvent(ws, serverEvent) {
-	console.log("Sending from server", serverEvent)
-	ws.send(JSON.stringify(serverEvent));
+// --- FEATURE: Register client
+function handleClientEventRegister(websocket, clientEvent) {
+	const newClient = registerClient(websocket, clientEvent)
+
+	sendServerEvent(websocket, {
+		type: "participantCount",
+		count: getParticipantCountForSubject(newClient)
+	})
 }
 
-// --- FEATURE: Register client
+
 function registerClient(websocket, clientEvent) {
-	clients.push(new Client(nanoid(), clientEvent.clientName, websocket))
+	const newClient = new Client(nanoid(), websocket, clientEvent.subject, clientEvent.clientName)
+	clients.push(newClient)
+
+	return newClient
+}
+
+function getParticipantCountForSubject(newClient) {
+	console.log("getParticipantCountForSubject")
+	const reducer = (count, client) => {
+		if (client.subject === newClient.subject)
+			return count + 1
+		else
+			return count
+	}
+
+	return clients.reduce(reducer, 0)
 }
 
 // --- FEATURE: Broadcast
