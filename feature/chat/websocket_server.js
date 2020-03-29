@@ -36,6 +36,7 @@ function handleClientEvent(websocket, clientEvent) {
 }
 // COMMON FOR FEATURES BELOW
 const clients = []
+const subjectToClient = {}
 
 class Client {
 	constructor(guid, websocket, subject, name) {
@@ -49,19 +50,22 @@ class Client {
 // --- FEATURE: Register client
 function handleClientEventRegister(websocket, clientEvent) {
 	const newClient = registerClient(websocket, clientEvent)
-
-	sendServerEvent(websocket, {
-		type: "participantCount",
-		count: getParticipantCountForSubject(newClient)
-	})
+	sendParticipantCount(newClient)
 }
-
 
 function registerClient(websocket, clientEvent) {
 	const newClient = new Client(nanoid(), websocket, clientEvent.subject, clientEvent.clientName)
 	clients.push(newClient)
+	subjectToClient[newClient.subject] = newClient
 
 	return newClient
+}
+
+function sendParticipantCount(newClient) {
+	sendServerEvent(newClient.websocket, {
+		type: "participantCount",
+		count: getParticipantCountForSubject(newClient)
+	})
 }
 
 function getParticipantCountForSubject(newClient) {
@@ -87,21 +91,19 @@ function createServerMessageType(from, message) {
 
 
 function broadcast(sourceClientWebsocket, clientEvent) {
-	clients.forEach((client) => {
-		console.log("Considering", client.name)
+	const sourceClient = getClientByWebsocket(sourceClientWebsocket)
 
-		if (sourceClientWebsocket != client.websocket) {
-			console.log("broadcasting to ", client.name)
-			const sourceClient = getClientByWebsocket(sourceClientWebsocket)
-			console.log("sourceClient", sourceClient)
-			sendServerEvent(client.websocket, createServerMessageType(sourceClient.name, clientEvent.message))
-		} else {
-			console.log("NOT broadcasting to ", client.name)
+	clients.forEach((targetClient) => {
+		console.log("Considering", targetClient.name)
+
+		if (sourceClient !== targetClient && sourceClient.subject === targetClient.subject) {
+			console.log("broadcasting to ", targetClient.name)
+			sendServerEvent(targetClient.websocket, createServerMessageType(sourceClient.name, clientEvent.message))
 		}
 	})
 }
 
-// TODO: Innefective O(n^2) implementation when used from a for loop
+// TODO: Implement as O(1) search instead of O(n)
 function getClientByWebsocket(websocket) {
 	return clients.filter(client => client.websocket === websocket)[0]
 }
