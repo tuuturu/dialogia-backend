@@ -46,6 +46,12 @@ class Client {
 	}
 }
 
+function broadcastToAllClients(sourceClient, data) {
+	subjectToClient[sourceClient.subject].forEach(targetClient => {
+		sendServerEvent(targetClient, data)
+	})
+}
+
 function broadcastToOtherClients(sourceClient, data) {
 	subjectToClient[sourceClient.subject].forEach(targetClient => {
 		if (targetClient !== sourceClient) {
@@ -60,7 +66,6 @@ function handleClientEventRegister(websocket, clientEvent) {
 	console.log("newClient: " + newClient.guid + ", " + newClient.subject)
 
 	registerClient(newClient)
-	//sendParticipantCount(newClient)
 	broadcastParticipantCountForSubject(newClient)
 }
 
@@ -76,16 +81,9 @@ function registerClient(newClient) {
 }
 
 function broadcastParticipantCountForSubject(sourceClient) {
-	broadcastToOtherClients(sourceClient, {
+	broadcastToAllClients(sourceClient, {
 		type: "participantCount",
 		count: getParticipantCountForSubject(sourceClient.subject)
-	})
-}
-
-function sendParticipantCount(newClient) {
-	sendServerEvent(newClient, {
-		type: "participantCount",
-		count: getParticipantCountForSubject(newClient.subject)
 	})
 }
 
@@ -112,7 +110,7 @@ function broadcastClientMessage(sourceClientWebsocket, clientEvent) {
 function getClientByWebsocket(websocket) {
 	const matches = clients.filter(client => client.websocket === websocket)
 
-	if (matches.length == 0) {
+	if (matches.length === 0) {
 	 	console.error("Could not find client by websocket!")
 	}
 
