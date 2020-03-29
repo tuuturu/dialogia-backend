@@ -2,9 +2,9 @@ const WebSocket = require('ws');
 const { nanoid } = require('nanoid')
 
 // COMMON FOR FEATURES BELOW
-function sendServerEvent(ws, serverEvent) {
+function sendServerEvent(client, serverEvent) {
 	console.log("Sending from server", serverEvent)
-	ws.send(JSON.stringify(serverEvent));
+	client.websocket.send(JSON.stringify(serverEvent));
 }
 
 // --- FEATURE: Web socket server
@@ -30,7 +30,7 @@ function handleClientEvent(websocket, clientEvent) {
 	if (clientEvent.type === "register")
 		handleClientEventRegister(websocket, clientEvent)
 	else if (clientEvent.type === "message")
-		broadcast(websocket, clientEvent)
+		broadcastClientMessage(websocket, clientEvent)
 	else
 		console.error("No handler for type: " + clientEvent.type)
 }
@@ -39,45 +39,59 @@ const clients = []
 const subjectToClient = {}
 
 class Client {
-	constructor(guid, websocket, subject, name) {
+	constructor(guid, websocket, subject) {
 		this.guid = guid
 		this.websocket = websocket
 		this.subject = subject
-		this.name = name
 	}
+}
+
+function broadcastToOtherClients(sourceClient, data) {
+	subjectToClient[sourceClient.subject].forEach(targetClient => {
+		if (targetClient !== sourceClient) {
+			sendServerEvent(targetClient, data)
+		}
+	})
 }
 
 // --- FEATURE: Register client
 function handleClientEventRegister(websocket, clientEvent) {
-	const newClient = registerClient(websocket, clientEvent)
-	sendParticipantCount(newClient)
+	const newClient = new Client(nanoid(), websocket, clientEvent.subject)
+	console.log("newClient: " + newClient.guid + ", " + newClient.subject)
+
+	registerClient(newClient)
+	//sendParticipantCount(newClient)
+	broadcastParticipantCountForSubject(newClient)
 }
 
-function registerClient(websocket, clientEvent) {
-	const newClient = new Client(nanoid(), websocket, clientEvent.subject, clientEvent.clientName)
+function registerClient(newClient) {
+	console.log("registerClient", newClient.subject)
 	clients.push(newClient)
-	subjectToClient[newClient.subject] = newClient
 
-	return newClient
+	if (!subjectToClient.hasOwnProperty(newClient.subject)) {
+		subjectToClient[newClient.subject] = []
+	}
+
+	subjectToClient[newClient.subject].push(newClient)
 }
 
-function sendParticipantCount(newClient) {
-	sendServerEvent(newClient.websocket, {
+function broadcastParticipantCountForSubject(sourceClient) {
+	broadcastToOtherClients(sourceClient, {
 		type: "participantCount",
-		count: getParticipantCountForSubject(newClient)
+		count: getParticipantCountForSubject(sourceClient.subject)
 	})
 }
 
-function getParticipantCountForSubject(newClient) {
-	console.log("getParticipantCountForSubject")
-	const reducer = (count, client) => {
-		if (client.subject === newClient.subject)
-			return count + 1
-		else
-			return count
-	}
+function sendParticipantCount(newClient) {
+	sendServerEvent(newClient, {
+		type: "participantCount",
+		count: getParticipantCountForSubject(newClient.subject)
+	})
+}
 
-	return clients.reduce(reducer, 0)
+function getParticipantCountForSubject(subject) {
+	console.log("getParticipantCountForSubject",  subject)
+	return subjectToClient[subject].length
 }
 
 // --- FEATURE: Broadcast
@@ -89,23 +103,20 @@ function createServerMessageType(from, message) {
 	}
 }
 
-
-function broadcast(sourceClientWebsocket, clientEvent) {
+function broadcastClientMessage(sourceClientWebsocket, clientEvent) {
 	const sourceClient = getClientByWebsocket(sourceClientWebsocket)
-
-	clients.forEach((targetClient) => {
-		console.log("Considering", targetClient.name)
-
-		if (sourceClient !== targetClient && sourceClient.subject === targetClient.subject) {
-			console.log("broadcasting to ", targetClient.name)
-			sendServerEvent(targetClient.websocket, createServerMessageType(sourceClient.name, clientEvent.message))
-		}
-	})
+	broadcastToOtherClients(sourceClient, createServerMessageType(sourceClient.name, clientEvent.message))
 }
 
 // TODO: Implement as O(1) search instead of O(n)
 function getClientByWebsocket(websocket) {
-	return clients.filter(client => client.websocket === websocket)[0]
+	const matches = clients.filter(client => client.websocket === websocket)
+
+	if (matches.length == 0) {
+	 	console.error("Could not find client by websocket!")
+	}
+
+	return matches[0]
 }
 
 // --- OTHER
