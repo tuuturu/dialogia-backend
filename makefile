@@ -8,12 +8,19 @@ REPOSITORY=docker.pkg.github.com/tuuturu/dialogia-backend
 help: ## Print this menu
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+bump:
+	npm version patch
+
 build-image:
 	docker build \
 		--tag ${REPOSITORY}/${NAME}:${VERSION} \
 		.
 push-image:
 	docker push ${REPOSITORY}/${NAME}:${VERSION}
+	docker push ${REPOSITORY}/${NAME}:latest
+
+release: bump build-image push-image
+	@echo "🚀 Release is ready for deploy"
 
 deploy:
 	@echo MANUAL PREREQUISITES:
