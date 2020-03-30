@@ -14,6 +14,7 @@ bump:
 build-image:
 	docker build \
 		--tag ${REPOSITORY}/${NAME}:${VERSION} \
+		--tag ${REPOSITORY}/${NAME}:latest \
 		.
 push-image:
 	docker push ${REPOSITORY}/${NAME}:${VERSION}
