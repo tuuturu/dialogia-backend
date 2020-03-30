@@ -1,6 +1,8 @@
 const WebSocket = require('ws');
 const { nanoid } = require('nanoid')
 
+const { bumpSubject } = require('../common/subject_repository')
+
 // COMMON FOR FEATURES BELOW
 function sendServerEvent(client, serverEvent) {
 	console.log("Sending from server", serverEvent)
@@ -104,6 +106,7 @@ function registerClient(newClient) {
 		subjectToClient[newClient.subject] = []
 	}
 
+	bumpSubject(newClient.subject)
 	subjectToClient[newClient.subject].push(newClient)
 }
 
