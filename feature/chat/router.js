@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const websocketServer = require('./websocket_server')
+const websocketServer = require('./server')
 
 router.get('/', async (req, res) => {
 	res.json()
